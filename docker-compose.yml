@@ -1,0 +1,60 @@
+# 参考:https://github.com/ngoduykhanh/wireguard-ui/blob/master/examples/docker-compose/linuxserver.yml
+version: "3"
+
+services:
+  wireguard:
+    image: linuxserver/wireguard:latest
+    restart: unless-stopped
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./wireguard/config:/config
+      - ./wireguard/lib/modules:/lib/modules
+    ports:
+      # port for wireguard-ui. this must be set here as the `wireguard-ui` container joins the network of this container and hasn't its own network over which it could publish the ports
+      - "5000:5000"
+      # port of the wireguard server
+      - "51820:51820/udp"
+    environment:
+      - TZ=Asia/Shanghai
+
+# https://github.com/ngoduykhanh/wireguard-ui
+# 没有互联网连接参考：https://github.com/ngoduykhanh/wireguard-ui/issues/449
+#   - WGUI_SERVER_POST_UP_SCRIPT=iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE # 默认服务器发布脚本
+#   - WGUI_SERVER_POST_DOWN_SCRIPT=iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE # 默认服务器宕机后脚本
+  wireguard-ui:
+    image: ngoduykhanh/wireguard-ui:latest
+    restart: unless-stopped
+    container_name: wireguard-ui
+    depends_on:
+      - wireguard
+    cap_add:
+      - NET_ADMIN
+    # use the network of the 'wireguard' service. this enables to show active clients in the status page
+    network_mode: service:wireguard
+    environment:
+      - SENDGRID_API_KEY
+      - EMAIL_FROM_ADDRESS
+      - EMAIL_FROM_NAME
+      - SESSION_SECRET
+      - WGUI_USERNAME=admin
+      - WGUI_PASSWORD=admin
+      - WG_CONF_TEMPLATE
+      - WGUI_MANAGE_START=true
+      - WGUI_MANAGE_RESTART=true
+      - TZ=Asia/Shanghai # 时区
+      - WGUI_ENDPOINT_ADDRESS=myddns.net # 客户端应连接到的全局设置中使用的默认终端节点地址。终端节点也可以包含一个端口，当您在端口内部侦听，但在另一个端口（例如 9000）上转发时，这很有用。例如：myvpn.dyndns.com:9000(WGUI_SERVER_LISTEN_PORT)
+      - WGUI_DNS=223.5.5.5 # 全局设置中使用的默认 DNS 服务器（逗号分隔列表）
+      - WGUI_PERSISTENT_KEEPALIVE=30 #全局设置 中 WireGuard 的默认持久 keepalive
+      - WGUI_SERVER_INTERFACE_ADDRESSES=10.252.1.0/24 # WireGuard 服务器配置的默认接口地址 （comma-separated-list）default:10.252.1.0/24
+      - WGUI_SERVER_POST_UP_SCRIPT=iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE # 默认服务器发布脚本
+      - WGUI_SERVER_POST_DOWN_SCRIPT=iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE # 默认服务器宕机后脚本
+      - WGUI_DEFAULT_CLIENT_ALLOWED_IPS=10.252.1.0/24 # 字段的 CIDR 的逗号分隔列表。（默认）Allowed IPs default:0.0.0.0/0
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+    volumes:
+      - ./wireguard-ui/db:/app/db
+      - ./wireguard-ui/config:/etc/wireguard
