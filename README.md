@@ -1,4 +1,14 @@
 # wireguard-ui
 wireguard-ui + wireguard docker compose
 
-## 解决wireguard-ui配置后无法联网问题
+### Solving the issue of not being able to connect to the internet after configuring Wireguard-UI
+
+## Run WireGuard-UI
+
+### Using docker compose
+
+Clone this is project, then run it like below:
+
+```
+docker-compose up
+```
